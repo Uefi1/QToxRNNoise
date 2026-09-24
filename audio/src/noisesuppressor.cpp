@@ -66,7 +66,9 @@ void NoiseSuppressor::processChannel(int16_t* samples, int sampleCount, int stri
         rnnoise_process_frame(state, outFrame.data(), inFrame.data());
 
         for (int i = 0; i < kFrameSize; ++i) {
-            samples[(frameStart + i) * stride] = softClip(outFrame[static_cast<size_t>(i)]);
+            // ~1 dB headroom so later applyGain rarely hard-clips
+            samples[(frameStart + i) * stride] =
+                softClip(outFrame[static_cast<size_t>(i)] * 0.9f);
         }
     }
 }
