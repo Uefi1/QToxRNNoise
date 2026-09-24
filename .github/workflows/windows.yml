@@ -20,11 +20,10 @@ jobs:
         run: |
           git config user.email "ci@qtox.local"
           git config user.name "CI"
-          # annotated tag — git describe его видит
-          if ! git describe --tags >/dev/null 2>&1; then
-            git tag -a v1.18.5-rnnoise -m "QToxRNNoise"
-          fi
-          echo "Version: $(git describe --tags)"
+          # Нужен именно annotated-тег: build.sh вызывает git describe БЕЗ --tags
+          git tag -f -a v1.18.5-rnnoise -m "QToxRNNoise"
+          git describe
+          echo "Version: $(git describe)"
 
       - name: Checkout ci-tools
         uses: actions/checkout@v4
