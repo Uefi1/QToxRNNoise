@@ -52,23 +52,28 @@ void NoiseSuppressor::processChannel(int16_t* samples, int sampleCount, int stri
         return;
     }
 
+    // RNNoise сильно искажает уже клипнутый вход.
+    // Глушим вход ~6 dB, обрабатываем, смешиваем с сухим сигналом.
+    constexpr float kPreGain = 0.5f;   // ослабление до RNNoise
+    constexpr float kWet     = 0.65f;  // доля очищенного сигнала
+    constexpr float kDry     = 0.35f;  // доля исходного (убирает «металл» и щелчки)
+
     for (int frameStart = 0; frameStart + kFrameSize <= sampleCount; frameStart += kFrameSize) {
-        // RNNoise expects float PCM in the same numeric range as int16_t
-        // (i.e. NOT normalized to [-1, 1]).
         for (int i = 0; i < kFrameSize; ++i) {
             inFrame[static_cast<size_t>(i)] =
-                static_cast<float>(samples[(frameStart + i) * stride]);
+                static_cast<float>(samples[(frameStart + i) * stride]) * kPreGain;
         }
 
-        // Return value is a voice-activity-detection probability [0, 1];
-        // we don't use it here, but it's available if a VAD-gated mode is
-        // wanted later.
         rnnoise_process_frame(state, outFrame.data(), inFrame.data());
 
         for (int i = 0; i < kFrameSize; ++i) {
-            // ~1 dB headroom so later applyGain rarely hard-clips
-            samples[(frameStart + i) * stride] =
-                softClip(outFrame[static_cast<size_t>(i)] * 0.9f);
+            const float dry = static_cast<float>(samples[(frameStart + i) * stride]);
+            // outFrame уже в масштабе pre-gain; возвращаем уровень
+            const float wet = outFrame[static_cast<size_t>(i)] / kPreGain;
+
+            float mixed = dry * kDry + wet * kWet;
+            mixed = std::clamp(mixed, -32768.0f, 32767.0f);
+            samples[(frameStart + i) * stride] = static_cast<int16_t>(mixed);
         }
     }
 }
