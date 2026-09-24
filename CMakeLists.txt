@@ -65,7 +65,7 @@ execute_process(
 project(
   qTox
   VERSION 1.18.5
-  LANGUAGES CXX)
+  LANGUAGES C CXX)
 set(PROJECT_ORG "io.github.qtox")
 
 string(TOLOWER ${PROJECT_NAME} BINARY_NAME)
