@@ -1,0 +1,67 @@
+name: Windows
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Windows x64 Release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Checkout ci-tools
+        uses: actions/checkout@v4
+        with:
+          repository: TokTok/ci-tools
+          path: third_party/ci-tools
+          submodules: true
+
+      - name: Checkout dockerfiles
+        uses: actions/checkout@v4
+        with:
+          repository: TokTok/dockerfiles
+          path: third_party/dockerfiles
+          submodules: true
+
+      - name: Copy docker-compose
+        run: cp third_party/dockerfiles/docker-compose.yml .
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .cache/ccache
+          key: windows-x86_64-release-ccache
+
+      - name: Pull Windows builder image
+        run: docker compose run --rm windows_builder.x86_64 uname -a
+
+      - name: Build
+        run: |
+          docker compose run --rm windows_builder.x86_64 \
+            third_party/ci-tools/platform/windows/cross-compile/build.sh \
+            --project-name qTox \
+            --arch x86_64 \
+            --build-type Release \
+            --src-dir /qtox \
+            -- \
+            -DSTRICT_OPTIONS=ON
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtox-windows-x64-setup
+          path: package-prefix/setup-qtox.exe
+          if-no-files-found: warn
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtox-windows-x64-zip
+          path: install-prefix/qtox-x86_64-Release.zip
+          if-no-files-found: warn
