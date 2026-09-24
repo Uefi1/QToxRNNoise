@@ -35,22 +35,11 @@ extern "C"
 namespace {
 void applyGain(int16_t* buffer, uint32_t bufferSize, qreal gainFactor)
 {
-    constexpr float kFullScale = 32767.0f;
-    constexpr float kKnee = 0.85f; // начинаем сжимать раньше, меньше щелчков
-
     for (quint32 i = 0; i < bufferSize; ++i) {
-        float x = static_cast<float>(buffer[i]) * static_cast<float>(gainFactor);
-        float n = x / kFullScale;
-        float an = std::fabs(n);
-
-        if (an > kKnee) {
-            const float sign = n < 0.0f ? -1.0f : 1.0f;
-            const float t = (an - kKnee) / (1.0f - kKnee);
-            n = sign * (kKnee + (1.0f - kKnee) * std::tanh(t));
-        }
-
-        buffer[i] = static_cast<int16_t>(
-            std::clamp(n * kFullScale, -32768.0f, 32767.0f));
+        buffer[i] = qBound<int16_t>(
+            std::numeric_limits<int16_t>::min(),
+            qRound(buffer[i] * gainFactor),
+            std::numeric_limits<int16_t>::max());
     }
 }
 
