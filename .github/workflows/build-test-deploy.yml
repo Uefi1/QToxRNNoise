@@ -1,0 +1,347 @@
+name: Build, test, and deploy
+
+on:
+  # Run this workflow every day at 3:00 UTC to update caches.
+  schedule: [cron: "0 3 * * *"]
+  # Allow manual trigger.
+  workflow_dispatch:
+  pull_request:
+    branches: ["master"]
+  push:
+    branches: ["master"]
+    tags: ["v*"]
+
+# Cancel old builds when pushing new commits.
+concurrency:
+  group: build-test-deploy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ###########################################################################
+  # Preparation jobs
+  ###########################################################################
+
+  prepare:
+    name: Prepare
+    uses: TokTok/ci-tools/.github/workflows/deploy-prepare.yml@master
+
+  ###########################################################################
+  # Static analysis and other checks
+  ###########################################################################
+
+  translation-check:
+    name: Check for translatable strings
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Checkout ci-tools
+        uses: actions/checkout@v6
+        with:
+          repository: TokTok/ci-tools
+          path: third_party/ci-tools
+          submodules: true
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install qt6-l10n-tools
+      - name: Test for modified translatable strings
+        run: |
+          export PATH="/usr/lib/qt6/bin:$PATH"
+          tools/update-translation-files.sh ALL
+          third_party/ci-tools/tools/translate.py
+          git diff --exit-code
+
+  clang-tidy:
+    name: Clang-Tidy
+    needs: [prepare]
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cache compiler output
+        uses: actions/cache@v5
+        with:
+          path: |
+            .cache/ccache
+            .cache/clangd
+            .lsp_tidy_cache
+          key: ${{ github.job }}-ccache
+      - name: Run build
+        run: docker compose run
+          --rm
+          fedora
+          .ci-scripts/build-qtox-linux.sh
+          --build-type Debug
+          --full
+          --tidy || (git diff --exit-code && false)
+
+  ###########################################################################
+  # Build and test jobs (PR)
+  ###########################################################################
+
+  build-alpine:
+    name: Alpine
+    needs: [prepare]
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        features: [full]
+        build_type: [Debug]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cache compiler output
+        uses: actions/cache@v5
+        with:
+          path: ".cache/ccache"
+          key: ${{ github.job }}-ccache
+      - name: Run build
+        run: docker compose run
+          --rm alpine
+          .ci-scripts/build-qtox-linux.sh
+          --build-type ${{ matrix.build_type }}
+          --${{ matrix.features }}
+
+  build-alpine-static:
+    name: Alpine (static)
+    needs: [prepare]
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        build_type: [Release]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cache compiler output
+        uses: actions/cache@v5
+        with:
+          path: ".cache/ccache"
+          key: ${{ github.job }}-ccache
+      - name: Run build
+        run: docker compose run
+          --rm alpine-static
+          .ci-scripts/build-qtox-linux-static.sh
+          --build-type ${{ matrix.build_type }}
+
+  build-debian:
+    name: Debian
+    needs: [prepare]
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        features: [minimal]
+        build_type: [Debug]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cache compiler output
+        uses: actions/cache@v5
+        with:
+          path: ".cache/ccache"
+          key: ${{ github.job }}-ccache
+      - name: Run build
+        run: docker compose run
+          --rm
+          debian
+          .ci-scripts/build-qtox-linux.sh
+          --build-type ${{ matrix.build_type }}
+          --${{ matrix.features }}
+          --sanitize
+
+  build-fedora:
+    name: Fedora with ASAN
+    needs: [prepare]
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        features: [full]
+        build_type: [Debug]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cache compiler output
+        uses: actions/cache@v5
+        with:
+          path: ".cache/ccache"
+          key: ${{ github.job }}-ccache
+      - name: Run build
+        run: docker compose run
+          --rm
+          fedora
+          .ci-scripts/build-qtox-linux.sh
+          --build-type ${{ matrix.build_type }}
+          --${{ matrix.features }}
+          --sanitize
+
+  build-macos-user:
+    name: macOS user
+    needs: [prepare]
+    if: github.event_name != 'push'
+    strategy:
+      matrix:
+        arch: [arm64, x86_64]
+        exclude:
+          - arch: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'packaging') && 'arm64' }}
+    runs-on: ${{ matrix.arch == 'x86_64' && 'macos-15-intel' || 'macos-14' }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Checkout ci-tools
+        uses: actions/checkout@v6
+        with:
+          repository: TokTok/ci-tools
+          path: third_party/ci-tools
+          submodules: true
+      - name: Checkout dockerfiles
+        uses: actions/checkout@v6
+        with:
+          repository: TokTok/dockerfiles
+          path: third_party/dockerfiles
+          submodules: true
+      - name: Cache compiler output
+        uses: actions/cache@v5
+        with:
+          path: ".cache/ccache"
+          key: ${{ github.job }}-${{ matrix.arch }}-ccache
+      - name: Homebrew
+        run: |
+          brew bundle --file platform/macos/Brewfile
+          sed -i '' -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=15/' "$(realpath "$(which create-dmg)")"
+      - name: Set up ccache
+        run: ccache --set-config=max_size=200M --set-config=cache_dir="$PWD/.cache/ccache" && ccache --show-config
+      - name: Install toxcore
+        run: third_party/dockerfiles/qtox/build_toxcore_system.sh sudo
+      - name: Build qTox
+        run: third_party/ci-tools/platform/macos/build.sh
+          --project-name qTox
+          --build-type user
+          --arch ${{ matrix.arch }}
+          --macos-version 12.0
+
+  build-ubuntu:
+    name: Ubuntu LTS
+    needs: [prepare]
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        features: [full]
+        build_type: [Release]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cache compiler output
+        uses: actions/cache@v5
+        with:
+          path: ".cache/ccache"
+          key: ${{ github.job }}-ccache
+      - name: Run build
+        run: docker compose run
+          --rm
+          ubuntu_lts
+          .ci-scripts/build-qtox-linux.sh
+          --build-type ${{ matrix.build_type }}
+          --${{ matrix.features }}
+      - name: Code coverage
+        run: |
+          # https://github.com/actions/runner/issues/491
+          if [ "${{ matrix.build_type }}" == "Release" ] && [ "${{ matrix.features }}" == "full" ]; then
+            docker compose run --rm ubuntu_lts .ci-scripts/lcov.sh
+            # Upload report to codecov.io
+            bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
+          fi
+
+  build-wasm:
+    name: WebAssembly
+    needs: [prepare]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Cache compiler output
+        uses: actions/cache@v5
+        with:
+          path: ".cache/ccache"
+          key: ${{ github.job }}-ccache
+      - name: Run build
+        run: docker compose run --rm wasm_builder platform/wasm/build.sh
+      - name: Upload zip
+        uses: actions/upload-artifact@v6
+        with:
+          name: qtox-wasm
+          path: _site
+
+  ###########################################################################
+  # Deploy jobs (release artifacts)
+  ###########################################################################
+
+  android:
+    name: Android
+    uses: TokTok/ci-tools/.github/workflows/deploy-android.yml@master
+    needs: [prepare]
+    with:
+      cmake-args: -D STRICT_OPTIONS=ON
+
+  appimage:
+    name: AppImage
+    uses: TokTok/ci-tools/.github/workflows/deploy-appimage.yml@master
+    needs: [prepare]
+    with:
+      cmake-args: -D STRICT_OPTIONS=ON
+      screenshot: true
+      smoke-test: .ci-scripts/smoke-test.sh
+      test-files: |
+        .ci-scripts/smoke-test.sh
+        test/resources/profile
+
+  flatpak:
+    name: Flatpak
+    uses: TokTok/ci-tools/.github/workflows/deploy-flatpak.yml@master
+    needs: [prepare]
+    with:
+      org-name: io.github.qtox
+      smoke-test: .ci-scripts/smoke-test.sh
+      test-files: |
+        .ci-scripts/smoke-test.sh
+        test/resources/profile
+
+  macos:
+    name: macOS
+    uses: TokTok/ci-tools/.github/workflows/deploy-macos.yml@master
+    needs: [prepare]
+    with:
+      cmake-args: -D STRICT_OPTIONS=ON
+      screenshot: true
+      smoke-test: .ci-scripts/smoke-test.sh
+      test-files: |
+        .ci-scripts/smoke-test.sh
+        test/resources/profile
+
+  windows:
+    name: Windows
+    uses: TokTok/ci-tools/.github/workflows/deploy-windows.yml@master
+    needs: [prepare]
+    with:
+      cmake-args: -D STRICT_OPTIONS=ON
+      smoke-test: .ci-scripts/smoke-test.sh
+      test-files: .ci-scripts/smoke-test.sh
+
+  ###########################################################################
+  # Documentation/website jobs
+  ###########################################################################
+
+  build-docs:
+    name: Docs
+    needs: [prepare]
+    runs-on: ubuntu-24.04
+    env:
+      DOXYGEN_CONFIG_FILE: doxygen.conf
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Run
+        run: .ci-scripts/build-docs.sh
+      - name: Deploy
+        if: github.ref == 'refs/heads/master' && github.repository_owner == 'qTox'
+        env:
+          access_key: ${{ secrets.DOXYGEN_DEPLOY_KEY }}
+        run: .ci-scripts/deploy-docs.sh
