@@ -14,6 +14,17 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
+          fetch-tags: true
+
+      - name: Ensure git describe works
+        run: |
+          git config user.email "ci@qtox.local"
+          git config user.name "CI"
+          # annotated tag — git describe его видит
+          if ! git describe --tags >/dev/null 2>&1; then
+            git tag -a v1.18.5-rnnoise -m "QToxRNNoise"
+          fi
+          echo "Version: $(git describe --tags)"
 
       - name: Checkout ci-tools
         uses: actions/checkout@v4
