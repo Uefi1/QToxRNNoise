@@ -1,0 +1,201 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
+load("//third_party/qt:build_defs.bzl", "qt_moc", "qt_rcc", "qt_test")
+
+qt_rcc(
+    name = "test_data",
+    testonly = True,
+    srcs = ["resources/test_data.qrc"],
+    data = glob(["resources/**/*.png"]),
+    tags = ["qt"],
+)
+
+COPTS = ["-Iqtox"] + select({
+    "//tools/config:freebsd": [],
+    "//tools/config:linux": ["-fPIC"],
+    "//tools/config:osx": [],
+    "//tools/config:windows": [],
+})
+
+qt_moc(
+    name = "mock_moc",
+    testonly = True,
+    srcs = ["mock/include/mock/mockcoresettings.h"],
+    mocopts = [
+        "-Iqtox",
+        "-Iqtox/util/include",
+    ],
+    tags = ["qt"],
+    deps = [
+        "//qtox/src",
+        "//qtox/src:core",
+        "//qtox/util",
+    ],
+)
+
+cc_library(
+    name = "dbutility",
+    testonly = True,
+    srcs = ["dbutility/src/dbutility.cpp"],
+    hdrs = ["dbutility/include/dbutility/dbutility.h"],
+    copts = COPTS,
+    strip_include_prefix = "dbutility/include",
+    tags = ["qt"],
+    deps = [
+        "//qtox/src",
+        "@qt//:qt_core",
+        "@qt//:qt_test",
+    ],
+)
+
+cc_library(
+    name = "mock",
+    testonly = True,
+    srcs = [
+        ":mock_moc",
+        ":test_data",
+    ] + glob(["mock/src/*.cpp"]),
+    hdrs = glob(["mock/include/mock/*.h"]),
+    copts = COPTS,
+    includes = ["mock/include"],
+    tags = ["qt"],
+    deps = [
+        "//qtox/src",
+        "//qtox/src:core",
+        "@qt//:qt_core",
+    ],
+)
+
+UI_TESTS = ["loginscreen_test"]
+
+MEDIUM_TESTS = [
+    "chatwidget_test",
+    "core_test",
+    "posixsignalnotifier_test",
+]
+
+TEST_DEPS = [
+    ":dbutility",
+    ":mock",
+    "//c-toxcore",
+    "//qtox:res_lib",
+    "//qtox/src",
+    "//qtox/src:core",
+    "//qtox/util",
+    "@qt//:qt_core",
+    "@qt//:qt_gui",
+    "@qt//:qt_network",
+    "@qt//:qt_widgets",
+]
+
+[qt_test(
+    name = src[src.rindex("/") + 1:-4],
+    size = "medium" if src[src.rindex("/") + 1:-4] in MEDIUM_TESTS else "small",
+    src = src,
+    copts = COPTS,
+    mocopts = ["-Iqtox"],
+    tags = ["ui"] if src[src.rindex("/") + 1:-4] in UI_TESTS else [],
+    deps = TEST_DEPS,
+) for src in glob(
+    ["**/*_test.cpp"],
+    exclude = [
+        "model/exiftransform_test.cpp",
+        "persistence/dbschema_test.cpp",
+        "platform/stacktrace_test.cpp",
+        "video/videoframe_test.cpp",
+        "chatlog/text_test.cpp",
+        "**/*_fuzz_test.cpp",
+    ],
+)]
+
+qt_test(
+    name = "text_test",
+    size = "small",
+    src = "chatlog/text_test.cpp",
+    copts = COPTS,
+    mocopts = ["-Iqtox"],
+    deps = [
+        ":dbutility",
+        ":mock",
+        "//qtox:res_lib",
+        "//qtox/src",
+        "//qtox/util",
+        "@qt//:qt_core",
+        "@qt//:qt_gui",
+        "@qt//:qt_widgets",
+    ],
+)
+
+qt_test(
+    name = "videoframe_test",
+    size = "small",
+    src = "video/videoframe_test.cpp",
+    copts = COPTS,
+    mocopts = ["-Iqtox"],
+    deps = [
+        "//qtox/src",
+        "@ffmpeg",
+        "@qt//:qt_concurrent",
+        "@qt//:qt_core",
+    ],
+)
+
+cc_fuzz_test(
+    name = "serialize_fuzz_test",
+    size = "small",
+    testonly = True,
+    srcs = ["persistence/serialize_fuzz_test.cpp"],
+    copts = COPTS,
+    corpus = ["//tools/toktok-fuzzer/corpus:serialize_fuzz_test"],
+    tags = ["qt"],
+    deps = ["//qtox/src:serialize"],
+)
+
+qt_test(
+    name = "exiftransform_test",
+    size = "small",
+    src = "model/exiftransform_test.cpp",
+    copts = COPTS,
+    mocopts = ["-Iqtox"],
+    deps = [
+        "//qtox/src:exiftransform",
+        "@qt//:qt_gui",
+    ],
+)
+
+qt_test(
+    name = "stacktrace_test",
+    size = "small",
+    src = "platform/stacktrace_test.cpp",
+    copts = COPTS,
+    mocopts = ["-Iqtox"],
+    deps = [
+        "//qtox/src:stacktrace",
+        "@qt//:qt_core",
+    ],
+)
+
+qt_test(
+    name = "dbschema_test",
+    size = "small",
+    src = "persistence/dbschema_test.cpp",
+    copts = COPTS,
+    mocopts = ["-Iqtox"],
+    deps = [
+        ":dbutility",
+        "//qtox/src",
+        "//qtox/src:core",
+        "@qt//:qt_core",
+    ],
+)
+
+cc_fuzz_test(
+    name = "exiftransform_fuzz_test",
+    size = "small",
+    testonly = True,
+    srcs = ["model/exiftransform_fuzz_test.cpp"],
+    copts = COPTS,
+    corpus = ["//tools/toktok-fuzzer/corpus:exiftransform_fuzz_test"],
+    tags = ["qt"],
+    deps = ["//qtox/src:exiftransform"],
+)

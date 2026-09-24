@@ -1,0 +1,65 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//third_party/python:build_defs.bzl", "mypy_test")
+load("//third_party/qt:build_defs.bzl", "qt_binary", "qt_lconvert", "qt_rcc")
+load("//tools/project:build_defs.bzl", "project")
+
+project(license = "gpl3-https")
+
+mypy_test(
+    name = "mypy_test",
+    srcs = glob(["**/*.py"]),
+    path = ["external/typeshed/stubs/requests"],
+    deps = ["@typeshed//:requests"],
+)
+
+qt_lconvert(
+    name = "qtox_qms",
+    srcs = glob(["translations/*.ts"]),
+    tags = ["qt"],
+)
+
+genrule(
+    name = "translations_qrc",
+    srcs = ["translations/translations.qrc"],
+    outs = ["translations/translations_local.qrc"],
+    cmd = "cp $< $@",
+    tags = ["qt"],
+)
+
+qt_rcc(
+    name = "translations",
+    srcs = [":translations_qrc"],
+    data = [":qtox_qms"],
+    tags = ["qt"],
+)
+
+qt_rcc(
+    name = "res",
+    srcs = ["res.qrc"] + glob(["smileys/*/emoticons.qrc"]),
+    data = glob([
+        "img/**/*",
+        "res/**/*",
+        "smileys/*/*.png",
+        "smileys/*/*.svg",
+        "smileys/*/*.xml",
+        "themes/**/*",
+    ]),
+    tags = ["qt"],
+)
+
+cc_library(
+    name = "res_lib",
+    srcs = [
+        ":res",
+        ":translations",
+    ],
+    tags = ["qt"],
+    visibility = ["//qtox:__subpackages__"],
+    alwayslink = True,
+)
+
+qt_binary(
+    name = "qtox",
+    visibility = ["//qtox:__subpackages__"],
+    deps = ["//qtox/src:main"],
+)

@@ -1,0 +1,28 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright © 2025-2026 The TokTok team.
+ */
+
+#include "src/version.h"
+
+#include <QString>
+
+#define GIT_DESCRIBE "@GIT_DESCRIBE@"
+#define GIT_VERSION "@GIT_VERSION@"
+#define GIT_DESCRIBE_EXACT "@GIT_DESCRIBE_EXACT@"
+
+namespace VersionInfo {
+QString gitDescribe()
+{
+    return QStringLiteral(GIT_DESCRIBE);
+}
+
+QString gitVersion()
+{
+    return QStringLiteral(GIT_VERSION);
+}
+
+QString gitDescribeExact()
+{
+    return QStringLiteral(GIT_DESCRIBE_EXACT);
+}
+} // namespace VersionInfo

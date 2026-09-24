@@ -1,0 +1,6 @@
+load("//third_party/qt:build_defs.bzl", "qt_win_deploy")
+
+qt_win_deploy(
+    name = "qtox",
+    deps = ["//qtox"],
+)

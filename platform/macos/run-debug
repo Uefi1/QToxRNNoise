@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -euxo pipefail
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/../"
+
+PRESET=${1:-release}
+DEBUGGER=${2:-none}
+
+if [ "$DEBUGGER" = "none" ]; then
+  DEBUGGER=()
+elif [ "$DEBUGGER" = "lldb" ]; then
+  DEBUGGER=(lldb -o run)
+else
+  DEBUGGER=("$DEBUGGER")
+fi
+
+test -d "_build-$PRESET" || cmake --preset "static-$PRESET"
+ln -sf "_build-$PRESET/compile_commands.json" compile_commands.json
+cmake --build "_build-$PRESET" --target qtox
+"${DEBUGGER[@]}" "_build-$PRESET/qtox.app/Contents/MacOS/qtox"

@@ -1,0 +1,9 @@
+_extends: .github
+
+version-resolver:
+  major:
+    labels:
+      - 'api break'
+  minor:
+    labels:
+      - 'enhancement'

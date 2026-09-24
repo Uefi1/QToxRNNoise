@@ -1,0 +1,79 @@
+x-shared-params: &shared_params
+  # Fixes various issues when building/running in the docker containers
+  # Known fixes:
+  #    * Appimage mounting
+  #    * Attaching to processes in GDB
+  #    * Fix tcl build due to pivot_root
+  cap_add:
+    - ALL
+  # Allows us to run app images from within the context of a docker image
+  devices:
+    - /dev/fuse:/dev/fuse
+  # X11 stuff
+  environment:
+    DISPLAY: ${DISPLAY:-:0}
+    XAUTHORITY: ${XAUTHORITY:-/root/.Xauthority}
+  volumes:
+    - .:/qtox
+    - /tmp/.X11-unix:/tmp/.X11-unix
+    - ~/.Xauthority:/root/.Xauthority
+  user: ${USER_ID:-0}:${GROUP_ID:-0}
+  network_mode: host
+
+services:
+  alpine:
+    image: ghcr.io/toktok/qtox:alpine
+    <<: *shared_params
+  alpine-appimage:
+    image: ghcr.io/toktok/qtox:alpine-appimage
+    <<: *shared_params
+  alpine-static:
+    image: ghcr.io/toktok/qtox:alpine-static
+    <<: *shared_params
+  android_builder.armeabi-v7a.debug_6.2.4:
+    image: ghcr.io/toktok/qtox:android-builder.armeabi-v7a.debug_6.2.4
+    <<: *shared_params
+  android_builder.armeabi-v7a.release_6.2.4:
+    image: ghcr.io/toktok/qtox:android-builder.armeabi-v7a.release_6.2.4
+    <<: *shared_params
+  android_builder.arm64-v8a.debug_6.2.4:
+    image: ghcr.io/toktok/qtox:android-builder.arm64-v8a.debug_6.2.4
+    <<: *shared_params
+  android_builder.arm64-v8a.release_6.2.4:
+    image: ghcr.io/toktok/qtox:android-builder.arm64-v8a.release_6.2.4
+    <<: *shared_params
+  android_builder.armeabi-v7a.debug_6.8.1:
+    image: ghcr.io/toktok/qtox:android-builder.armeabi-v7a.debug_6.8.1
+    <<: *shared_params
+  android_builder.armeabi-v7a.release_6.8.1:
+    image: ghcr.io/toktok/qtox:android-builder.armeabi-v7a.release_6.8.1
+    <<: *shared_params
+  android_builder.arm64-v8a.debug_6.8.1:
+    image: ghcr.io/toktok/qtox:android-builder.arm64-v8a.debug_6.8.1
+    <<: *shared_params
+  android_builder.arm64-v8a.release_6.8.1:
+    image: ghcr.io/toktok/qtox:android-builder.arm64-v8a.release_6.8.1
+    <<: *shared_params
+  debian:
+    image: ghcr.io/toktok/qtox:debian
+    <<: *shared_params
+  fedora:
+    image: ghcr.io/toktok/qtox:fedora
+    <<: *shared_params
+  flatpak:
+    image: ghcr.io/toktok/qtox:flatpak-builder
+    # Flatpak build uses pivot_root() in tcl build
+    privileged: true
+    <<: *shared_params
+  ubuntu_lts:
+    image: ghcr.io/toktok/qtox:ubuntu-lts
+    <<: *shared_params
+  windows_builder.i686:
+    image: ghcr.io/toktok/qtox:windows-builder.i686
+    <<: *shared_params
+  windows_builder.x86_64:
+    image: ghcr.io/toktok/qtox:windows-builder.x86_64
+    <<: *shared_params
+  wasm_builder:
+    image: ghcr.io/toktok/qtox:wasm-builder
+    <<: *shared_params

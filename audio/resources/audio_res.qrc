@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/audio">
+        <file>call_end.s16le.pcm</file>
+        <file>call_incoming.s16le.pcm</file>
+        <file>call_outgoing.s16le.pcm</file>
+        <file>notification.s16le.pcm</file>
+    </qresource>
+</RCC>

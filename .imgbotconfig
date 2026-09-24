@@ -1,0 +1,7 @@
+{
+    "schedule": "daily",
+    "ignoredFiles": [
+        "*.svg"
+    ],
+    "prTitle" : "perf: ImgBot optimized images"
+}

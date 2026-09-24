@@ -1,0 +1,8 @@
+load("//third_party/qt:build_defs.bzl", "qt_mac_deploy")
+
+qt_mac_deploy(
+    name = "qtox",
+    app_icons = glob(["qtox.icns.xcassets/**"]),
+    bundle_id = "chat.tox.qtox",
+    deps = ["//qtox:qtox_main"],
+)

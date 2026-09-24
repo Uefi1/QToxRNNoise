@@ -1,0 +1,63 @@
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
+
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+# Doxygen
+doc/html/*
+
+# Executables
+qtox
+*.exe
+build-*-Release
+build-*-Profile
+build-*-Debug
+.qtox-wrapped
+
+# Folders
+/.cache
+/.vscode
+/_site
+_[Bb]uild*/
+_obj
+_test
+libs
+__pycache__
+
+# Git
+*.orig
+*.rej
+
+# macOS
+.DS_Store
+/qtox.app
+*-e
+
+# Qt
+*.user
+moc_*
+ui_*
+qrc_*
+Makefile
+*.qm
+/.qmake.stash
+
+# Rust
+target/
+.cargo/
+
+# Tarballs
+*.tar.*
+
+# Editor temp files
+*.swp
+
+# IDE support
+/compile_commands.json
+/.lsp_tidy_cache
+/third_party/ci-tools
+/third_party/deps

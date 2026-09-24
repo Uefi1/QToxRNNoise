@@ -1,0 +1,18 @@
+---
+version: 2
+
+workflows:
+  version: 2
+  circleci:
+    jobs:
+      - bazel-release
+
+jobs:
+  bazel-release:
+    working_directory: /tmp/cirrus-ci-build
+    docker:
+      - image: toxchat/toktok-stack:latest
+
+    steps:
+      - checkout
+      - run: bash <(curl -s https://raw.githubusercontent.com/TokTok/ci-tools/refs/heads/master/tools/circleci-bazel-test)

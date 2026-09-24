@@ -1,0 +1,15 @@
+# Build dependencies for qTox (in build order).
+openssl
+qrencode
+libexif
+sodium
+openal
+vpx
+opus
+ffmpeg
+sqlcipher
+hunspell
+extra_cmake_modules
+sonnet
+kimageformats
+toxcore

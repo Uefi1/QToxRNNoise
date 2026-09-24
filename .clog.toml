@@ -1,0 +1,8 @@
+[clog]
+repository = "https://github.com/TokTok/qTox"
+changelog = "CHANGELOG.md"
+from-latest-tag = true
+ignore-before = "v1.3.0"
+forked-from = [
+    { repository = "https://github.com/qTox/qTox", since = "8632be2" }
+]

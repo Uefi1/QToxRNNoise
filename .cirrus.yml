@@ -1,0 +1,33 @@
+# TODO(iphydf): Re-enable in February 2025 when we have quota again.
+# ---
+# freebsd_task:
+#   timeout_in: 15m
+#   freebsd_instance:
+#     image_family: freebsd-14-1
+#   env:
+#     CCACHE_DIR: $CIRRUS_WORKING_DIR/ccache
+#     CCACHE_MAXSIZE: "150M"
+#   ccache_cache:
+#     folder: $CCACHE_DIR
+#   configure_script:
+#     - PAGER=cat ASSUME_ALWAYS_YES=YES pkg install
+#         ccache
+#         cmake
+#         ffmpeg
+#         git
+#         libXScrnSaver
+#         libexif
+#         libqrencode
+#         libv4l
+#         kf6-sonnet
+#         ninja
+#         openal-soft
+#         pkgconf
+#         qt6-base
+#         qt6-svg
+#         qt6-tools
+#         sqlcipher
+#         toxcore
+#         v4l_compat
+#   test_all_script:
+#     - cmake -B _build -G Ninja . && cmake --build _build && cmake --install _build
