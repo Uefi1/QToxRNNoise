@@ -1,18 +1,11 @@
 name: release
 
+# Заглушка: автозапуск отключён, запуск только вручную (Actions -> Run workflow)
 on:
-  issues:
-    types: [assigned]
-
-concurrency:
-  group: release-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  workflow_dispatch:
 
 jobs:
-  release:
-    name: Release
-    uses: TokTok/ci-tools/.github/workflows/release-deploy.yml@master
-    with:
-      production: true
-    secrets:
-      TOKEN_RELEASES: ${{ secrets.TOKEN_RELEASES }}
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Workflow disabled - manual stub"
